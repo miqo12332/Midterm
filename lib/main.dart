@@ -1,122 +1,159 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
+import 'dart:math';
+import 'add_homework.dart';
 
 void main() {
-  runApp(const MyApp());
-}
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  // This widget is the root of your application.
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+  final router = GoRouter(
+    routes: [
+      GoRoute(path: '/', builder: (context, state) => const HomeworkListPage()),
+      GoRoute(path: '/add', builder: (context, state) => const AddHomeworkPage()),
+    ],
+  );
+  runApp(
+    BlocProvider(
+      create: (_) => HomeworkBloc()..add(LoadHomeworks()),
+      child: MaterialApp.router(
+        debugShowCheckedModeBanner: false,
+        title: "Homework App",
+        theme: ThemeData(useMaterial3: true, colorSchemeSeed: Colors.indigo),
+        routerConfig: router,
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
-    );
-  }
+    ),
+  );
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
+class Homework {
+  final String id;
+  final String subject;
   final String title;
+  final DateTime dueDate;
+  final bool isDone;
 
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  Homework({
+    required this.id,
+    required this.subject,
+    required this.title,
+    required this.dueDate,
+    this.isDone = false,
+  });
+
+  Homework copyWith({bool? isDone}) => Homework(
+    id: id,
+    subject: subject,
+    title: title,
+    dueDate: dueDate,
+    isDone: isDone ?? this.isDone,
+  );
+
+  Map<String, dynamic> toMap() => {
+    'id': id,
+    'subject': subject,
+    'title': title,
+    'dueDate': dueDate.toIso8601String(),
+    'isDone': isDone,
+  };
+
+  factory Homework.fromMap(Map<String, dynamic> map) => Homework(
+    id: map['id'],
+    subject: map['subject'],
+    title: map['title'],
+    dueDate: DateTime.parse(map['dueDate']),
+    isDone: map['isDone'],
+  );
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+abstract class HomeworkEvent {}
+class AddHomework extends HomeworkEvent {
+  final Homework homework;
+  AddHomework(this.homework);
+}
+class ToggleHomework extends HomeworkEvent {
+  final String id;
+  ToggleHomework(this.id);
+}
+class LoadHomeworks extends HomeworkEvent {}
 
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
+class HomeworkBloc extends Bloc<HomeworkEvent, List<Homework>> {
+  HomeworkBloc() : super([]) {
+    on<LoadHomeworks>(_load);
+    on<AddHomework>(_add);
+    on<ToggleHomework>(_toggle);
   }
 
+  Future<void> _load(LoadHomeworks e, Emitter<List<Homework>> emit) async {
+    final prefs = await SharedPreferences.getInstance();
+    final list = prefs.getStringList('homeworks') ?? [];
+    emit(list.map((s) => Homework.fromMap(json.decode(s))).toList());
+  }
+
+  Future<void> _save(List<Homework> list) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('homeworks', list.map((h) => json.encode(h.toMap())).toList());
+  }
+
+  Future<void> _add(AddHomework e, Emitter<List<Homework>> emit) async {
+    final updated = [...state, e.homework];
+    await _save(updated);
+    emit(updated);
+  }
+
+  Future<void> _toggle(ToggleHomework e, Emitter<List<Homework>> emit) async {
+    final updated = state.map((h) => h.id == e.id ? h.copyWith(isDone: !h.isDone) : h).toList();
+    await _save(updated);
+    emit(updated);
+  }
+}
+
+class HomeworkListPage extends StatelessWidget {
+  const HomeworkListPage({super.key});
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
     return Scaffold(
-      appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
+      appBar: AppBar(title: const Text("My Homework")),
+      body: BlocBuilder<HomeworkBloc, List<Homework>>(
+        builder: (context, list) {
+          if (list.isEmpty) {
+            return const Center(
+              child: Text(
+                "No homework yet.\nTap + to add one.",
+                textAlign: TextAlign.center,
+              ),
+            );
+          }
+          return ListView.builder(
+            itemCount: list.length,
+            itemBuilder: (context, i) {
+              final hw = list[i];
+              return Card(
+                margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                child: ListTile(
+                  leading: Checkbox(
+                    value: hw.isDone,
+                    onChanged: (_) => context.read<HomeworkBloc>().add(ToggleHomework(hw.id)),
+                  ),
+                  title: Text(
+                    hw.title,
+                    style: TextStyle(decoration: hw.isDone ? TextDecoration.lineThrough : null),
+                  ),
+                  subtitle: Text("${hw.subject} — Due: ${hw.dueDate.toLocal().toString().split(' ')[0]}"),
+                  trailing: hw.isDone
+                      ? const Icon(Icons.check_circle, color: Colors.green)
+                      : const Icon(Icons.schedule, color: Colors.orange),
+                ),
+              );
+            },
+          );
+        },
       ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-          ],
-        ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => context.push('/add'),
+        icon: const Icon(Icons.add),
+        label: const Text("Add"),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
     );
   }
 }
