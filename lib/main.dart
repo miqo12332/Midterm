@@ -3,18 +3,25 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
-import 'dart:math';
 import 'add_homework.dart';
 
 void main() {
-  final router = GoRouter(
-    routes: [
-      GoRoute(path: '/', builder: (context, state) => const HomeworkListPage()),
-      GoRoute(path: '/add', builder: (context, state) => const AddHomeworkPage()),
-    ],
-  );
-  runApp(
-    BlocProvider(
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final router = GoRouter(
+      routes: [
+        GoRoute(path: '/', builder: (context, state) => const HomeworkListPage()),
+        GoRoute(path: '/add', builder: (context, state) => const AddHomeworkPage()),
+      ],
+    );
+
+    return BlocProvider(
       create: (_) => HomeworkBloc()..add(LoadHomeworks()),
       child: MaterialApp.router(
         debugShowCheckedModeBanner: false,
@@ -22,8 +29,8 @@ void main() {
         theme: ThemeData(useMaterial3: true, colorSchemeSeed: Colors.indigo),
         routerConfig: router,
       ),
-    ),
-  );
+    );
+  }
 }
 
 class Homework {
@@ -67,14 +74,17 @@ class Homework {
 }
 
 abstract class HomeworkEvent {}
+
 class AddHomework extends HomeworkEvent {
   final Homework homework;
   AddHomework(this.homework);
 }
+
 class ToggleHomework extends HomeworkEvent {
   final String id;
   ToggleHomework(this.id);
 }
+
 class LoadHomeworks extends HomeworkEvent {}
 
 class HomeworkBloc extends Bloc<HomeworkEvent, List<Homework>> {
@@ -92,7 +102,8 @@ class HomeworkBloc extends Bloc<HomeworkEvent, List<Homework>> {
 
   Future<void> _save(List<Homework> list) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList('homeworks', list.map((h) => json.encode(h.toMap())).toList());
+    await prefs.setStringList(
+        'homeworks', list.map((h) => json.encode(h.toMap())).toList());
   }
 
   Future<void> _add(AddHomework e, Emitter<List<Homework>> emit) async {
@@ -102,7 +113,9 @@ class HomeworkBloc extends Bloc<HomeworkEvent, List<Homework>> {
   }
 
   Future<void> _toggle(ToggleHomework e, Emitter<List<Homework>> emit) async {
-    final updated = state.map((h) => h.id == e.id ? h.copyWith(isDone: !h.isDone) : h).toList();
+    final updated = state
+        .map((h) => h.id == e.id ? h.copyWith(isDone: !h.isDone) : h)
+        .toList();
     await _save(updated);
     emit(updated);
   }
@@ -110,6 +123,7 @@ class HomeworkBloc extends Bloc<HomeworkEvent, List<Homework>> {
 
 class HomeworkListPage extends StatelessWidget {
   const HomeworkListPage({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -121,6 +135,7 @@ class HomeworkListPage extends StatelessWidget {
               child: Text(
                 "No homework yet.\nTap + to add one.",
                 textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 16, color: Colors.grey),
               ),
             );
           }
@@ -129,17 +144,29 @@ class HomeworkListPage extends StatelessWidget {
             itemBuilder: (context, i) {
               final hw = list[i];
               return Card(
-                margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                margin:
+                const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                color: hw.isDone ? Colors.grey.shade200 : Colors.white,
+                elevation: 2,
                 child: ListTile(
                   leading: Checkbox(
                     value: hw.isDone,
-                    onChanged: (_) => context.read<HomeworkBloc>().add(ToggleHomework(hw.id)),
+                    onChanged: (_) => context
+                        .read<HomeworkBloc>()
+                        .add(ToggleHomework(hw.id)),
                   ),
                   title: Text(
                     hw.title,
-                    style: TextStyle(decoration: hw.isDone ? TextDecoration.lineThrough : null),
+                    style: TextStyle(
+                      decoration:
+                      hw.isDone ? TextDecoration.lineThrough : null,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                  subtitle: Text("${hw.subject} — Due: ${hw.dueDate.toLocal().toString().split(' ')[0]}"),
+                  subtitle: Text(
+                      "${hw.subject} — Due: ${hw.dueDate.toLocal().toString().split(' ')[0]}",
+                      style: TextStyle(
+                          color: hw.isDone ? Colors.grey : Colors.black87)),
                   trailing: hw.isDone
                       ? const Icon(Icons.check_circle, color: Colors.green)
                       : const Icon(Icons.schedule, color: Colors.orange),
@@ -151,8 +178,10 @@ class HomeworkListPage extends StatelessWidget {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/add'),
+        backgroundColor: Colors.indigo,
+        elevation: 6,
         icon: const Icon(Icons.add),
-        label: const Text("Add"),
+        label: const Text("Add Homework"),
       ),
     );
   }

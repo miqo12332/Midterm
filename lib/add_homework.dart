@@ -51,13 +51,25 @@ class _AddHomeworkPageState extends State<AddHomeworkPage> {
             children: [
               TextFormField(
                 controller: _subjectCtrl,
-                decoration: const InputDecoration(labelText: "Subject"),
+                decoration: InputDecoration(
+                  labelText: "Subject",
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                  filled: true,
+                  fillColor: Colors.grey.shade100,
+                ),
                 validator: (v) => v == null || v.isEmpty ? "Enter subject" : null,
               ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _titleCtrl,
-                decoration: const InputDecoration(labelText: "Homework Title"),
+                decoration: InputDecoration(
+                  labelText: "Homework Title",
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                  filled: true,
+                  fillColor: Colors.grey.shade100,
+                ),
                 validator: (v) => v == null || v.isEmpty ? "Enter title" : null,
               ),
               const SizedBox(height: 12),
@@ -68,17 +80,26 @@ class _AddHomeworkPageState extends State<AddHomeworkPage> {
                       _dueDate == null
                           ? "No date selected"
                           : "Due: ${_dueDate!.toLocal().toString().split(' ')[0]}",
+                      style: TextStyle(
+                          fontWeight: FontWeight.w500, color: Colors.black87),
                     ),
                   ),
-                  TextButton(onPressed: _pickDate, child: const Text("Pick Date")),
+                  TextButton(
+                      onPressed: _pickDate,
+                      child: const Text("Pick Date",
+                          style: TextStyle(color: Colors.indigo))),
                 ],
               ),
               const Spacer(),
               SizedBox(
                 width: double.infinity,
+                height: 50,
                 child: ElevatedButton.icon(
                   icon: const Icon(Icons.save),
                   label: const Text("Save Homework"),
+                  style: ElevatedButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8))),
                   onPressed: _save,
                 ),
               ),
